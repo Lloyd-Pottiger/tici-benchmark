@@ -92,7 +92,7 @@ def cleanup_s3_files(config_file):
     print("🧹 Starting cleanup process...")
 
     # Load configuration from TOML file
-    config = load_toml_config()
+    config = load_toml_config(config_file)
 
     # Extract S3 configuration
     if 's3' in config:

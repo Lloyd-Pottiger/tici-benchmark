@@ -347,7 +347,7 @@ class TICIBenchmarkRunner:
             self.verify_index_creation()
 
             # Step 6: Run QPS benchmark
-            # self.run_qps_benchmark()
+            self.run_qps_benchmark()
 
             # Step 7: Run latency benchmark
             self.run_latency_benchmark()
