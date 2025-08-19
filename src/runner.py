@@ -25,7 +25,7 @@ from . import clean_up
 
 
 class TICIBenchmarkRunner:
-    def __init__(self, worker_count=2, tiflash_count=1, max_rows=1000000):
+    def __init__(self, worker_count=1, tiflash_count=1, max_rows=1000000):
         self.tiup_process = None
         self.current_test_size = None
         self.worker_count = worker_count

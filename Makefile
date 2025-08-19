@@ -12,5 +12,8 @@ install: setup
 		gzip -d ${ASSET_DIR}/hdfs-logs-multitenants.json.gz && \
 		rm -f ${ASSET_DIR}/hdfs-logs-multitenants.json.gz)
 
-run: install
+test: install
 	ASSET_DIR=${ASSET_DIR} python3 main.py
+
+test-multi-tiflash: install
+	ASSET_DIR=${ASSET_DIR} python3 main.py --tiflash 2
