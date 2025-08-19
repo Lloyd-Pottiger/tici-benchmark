@@ -1,0 +1,19 @@
+[reader_pool]
+ttl_seconds = 9
+cleanup_interval_seconds = 1
+scheduling_strategy = "round_robin"
+
+[s3]
+endpoint = "http://localhost:9000"
+region = "us-east-1"
+access_key = "minioadmin"
+secret_key = "minioadmin"
+use_path_style = true
+bucket = "logbucket"
+prefix = "qiuyang_test"
+
+[shard]
+compaction_fragments = 10
+compaction_datafiles = 300
+max_size = "16MB"
+split_threshold = 0.75

@@ -1,0 +1,23 @@
+[tici]
+enable = 1
+[tici.s3]  
+endpoint = "http://localhost:9000"
+region = "us-east-1"
+access_key = "minioadmin"
+secret_key = "minioadmin"
+use_path_style = true
+
+[tici.reader_node]  
+addr = "127.0.0.1:8520"
+heartbeat_interval = "3s"
+max_heartbeat_retries = 3
+
+[tici.frag_reader] 
+local_data_path = "frag_local_data"
+doc_store_cache_size = "16MB"
+
+[flash]
+service_addr = "127.0.0.1:3930"
+
+[raft]
+pd_addr = "127.0.0.1:2379"
