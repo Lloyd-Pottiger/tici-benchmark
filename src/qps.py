@@ -1,12 +1,10 @@
 import time
-import mysql.connector
-from mysql.connector import Error
 from statistics import mean
 import multiprocessing
 from itertools import repeat
-from tabulate import tabulate
 
 from . import config
+from . import utils
 
 
 def worker(host, port, user, database, query_template, word, duration):
@@ -14,49 +12,37 @@ def worker(host, port, user, database, query_template, word, duration):
     This function is executed by each worker process.
     It connects to the DB, runs queries for a set duration, and returns its performance metrics.
     """
-    connection = None
     latencies = []
     query_count = 0
 
     # Each process must create its own connection.
     # Connections cannot be shared across processes.
     try:
-        connection = mysql.connector.connect(
-            host=host,
-            port=port,
-            user=user,
-            database=database,
-            # Set a timeout for the connection attempt
-            connection_timeout=10
-        )
-        cursor = connection.cursor()
+        with utils.mysql_connection(host, port, user, database) as connection:
+            cursor = connection.cursor()
 
-        start_test_time = time.time()
+            start_test_time = time.time()
 
-        # Run queries until the test duration has elapsed
-        while time.time() - start_test_time < duration:
-            query = query_template.replace("xxxx", word)
+            # Run queries until the test duration has elapsed
+            while time.time() - start_test_time < duration:
+                query = query_template.replace("xxxx", word)
 
-            start_query_time = time.time()
-            cursor.execute(query)
-            # Fetching is important to ensure the query is fully processed by the DB
-            cursor.fetchall()
-            end_query_time = time.time()
+                start_query_time = time.time()
+                cursor.execute(query)
+                # Fetching is important to ensure the query is fully processed by the DB
+                cursor.fetchall()
+                end_query_time = time.time()
 
-            latencies.append(end_query_time - start_query_time)
-            query_count += 1
+                latencies.append(end_query_time - start_query_time)
+                query_count += 1
 
-        return (query_count, latencies)
+            cursor.close()
+            return (query_count, latencies)
 
-    except Error as e:
+    except Exception as e:
         # If a worker fails to connect or execute, it returns 0 results.
         print(f"[Process-{multiprocessing.current_process().pid}] Error: {e}")
         return (0, [])
-
-    finally:
-        if connection and connection.is_connected():
-            cursor.close()
-            connection.close()
 
 
 def get_qps(host, port, user, database, query_template, word, matched_rows, concurrency):
@@ -121,15 +107,4 @@ if __name__ == "__main__":
         final_results.append(result)
 
     # Format and print the final table
-    table_data = []
-    for res in final_results:
-        table_data.append([
-            f"{res['matched_rows']:,}",
-            f"{res['best_qps']:.2f}",
-            f"{res['best_avg_latency']:.2f}",
-            res['best_concurrency']
-        ])
-
-    headers = ["Matched rows", "QPS", "Average latency (ms)", "Concurrency"]
-    print("\n📊 Final Benchmark Results:")
-    print(tabulate(table_data, headers=headers, tablefmt="pipe"))
+    utils.format_qps_results(final_results)

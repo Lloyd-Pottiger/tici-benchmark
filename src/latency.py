@@ -1,26 +1,16 @@
 import time
-import mysql.connector
-from mysql.connector import Error
 from statistics import mean
-from tabulate import tabulate
 
 from . import config
+from . import utils
 
 
 def run_query_benchmark(host, port, user, database, query_template, word, iterations=10):
-    connection = None
     total_times = []
 
     try:
-        # Connect to MySQL server
-        connection = mysql.connector.connect(
-            host=host,
-            port=port,
-            user=user,
-            database=database
-        )
-
-        if connection.is_connected():
+        # Connect to MySQL server using utils
+        with utils.mysql_connection(host, port, user, database) as connection:
             cursor = connection.cursor()
 
             for _ in range(iterations):
@@ -29,11 +19,12 @@ def run_query_benchmark(host, port, user, database, query_template, word, iterat
                 start_time = time.time()
                 cursor.execute(query)
                 results = cursor.fetchall()
-                elapsed_time = (time.time() - start_time) * \
-                    1000  # Convert to milliseconds
+                # Convert to milliseconds
+                elapsed_time = (time.time() - start_time) * 1000
                 total_times.append(elapsed_time)
                 time.sleep(0.01)
 
+            cursor.close()
             return {
                 'matched_rows': word[1],
                 'min': min(total_times),
@@ -41,14 +32,9 @@ def run_query_benchmark(host, port, user, database, query_template, word, iterat
                 'avg': mean(total_times)
             }
 
-    except Error as e:
+    except Exception as e:
         print(f"Error: {e}")
         return None
-
-    finally:
-        if connection and connection.is_connected():
-            cursor.close()
-            connection.close()
 
 
 if __name__ == "__main__":
@@ -76,15 +62,4 @@ if __name__ == "__main__":
             results.append(result)
 
     # Format and print the table
-    table_data = []
-    for res in results:
-        table_data.append([
-            f"{res['matched_rows']:,}",
-            f"{res['min']:.2f}",
-            f"{res['max']:.2f}",
-            f"{res['avg']:.2f}"
-        ])
-
-    headers = ["Matched rows", "Min (ms)", "Max (ms)", "Avg (ms)"]
-    print("\nBenchmark Results:")
-    print(tabulate(table_data, headers=headers, tablefmt="pipe"))
+    utils.format_latency_results(results)

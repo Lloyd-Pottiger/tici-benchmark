@@ -22,6 +22,7 @@ from . import insert_data
 from . import qps
 from . import latency
 from . import clean_up
+from . import utils
 
 
 class TICIBenchmarkRunner:
@@ -39,18 +40,7 @@ class TICIBenchmarkRunner:
         config_path = os.path.join(config.PROJECT_DIR, "config/test-meta.toml")
         print(f"📝 Modifying config: shard.max_size = {max_shard_size}")
 
-        # Read the current config
-        with open(config_path, 'r') as f:
-            lines = f.readlines()
-
-        # Modify the max_size line
-        with open(config_path, 'w') as f:
-            for line in lines:
-                if line.strip().startswith('max_size ='):
-                    f.write(f'max_size = "{max_shard_size}"\n')
-                else:
-                    f.write(line)
-
+        utils.modify_toml_config_value(config_path, "max_size", max_shard_size)
         print(f"✅ Config updated: max_size = {max_shard_size}")
 
     def start_tiup_cluster(self):
@@ -128,29 +118,14 @@ class TICIBenchmarkRunner:
         print("🔍 Creating fulltext index...")
 
         try:
-            import mysql.connector
-            from mysql.connector import Error
-
-            # Use direct database connection instead of subprocess
-            connection = mysql.connector.connect(
-                host=self.mysql_host,
-                port=self.mysql_port,
-                user="root"
-            )
-
-            cursor = connection.cursor()
-            cursor.execute(
-                "ALTER TABLE test.hdfs_10w ADD FULLTEXT INDEX ft_index (body) WITH PARSER standard;")
-            connection.commit()
-
+            with utils.mysql_connection(self.mysql_host, self.mysql_port) as connection:
+                utils.execute_sql(
+                    connection,
+                    "ALTER TABLE test.hdfs_10w ADD FULLTEXT INDEX ft_index (body) WITH PARSER standard;"
+                )
             print("✅ Fulltext index created successfully")
-
-        except Error as e:
+        except Exception as e:
             raise RuntimeError(f"Index creation failed: {e}")
-        finally:
-            if connection and connection.is_connected():
-                cursor.close()
-                connection.close()
 
     # FIXME: chekc s3 file and progress
     def verify_index_creation(self):
@@ -159,30 +134,10 @@ class TICIBenchmarkRunner:
 
         time.sleep(60)  # Give some time for index to be created
 
-        try:
-            import mysql.connector
-            from mysql.connector import Error
-
-            # Use direct database connection instead of subprocess
-            connection = mysql.connector.connect(
-                host=self.mysql_host,
-                port=self.mysql_port,
-                user="root"
-            )
-
-            cursor = connection.cursor()
-            cursor.execute("SELECT count(*) FROM tici.tici_shard_meta;")
-            result = cursor.fetchone()
-
-            print("✅ Index verification completed")
-            print(f"Shards count: {result[0] if result else 0}")
-
-        except Error as e:
-            raise RuntimeError(f"⚠️ Could not verify index: {e}")
-        finally:
-            if connection and connection.is_connected():
-                cursor.close()
-                connection.close()
+        with utils.mysql_connection(self.mysql_host, self.mysql_port) as connection:
+            result = utils.execute_sql(
+                connection, "SELECT count(*) FROM tici.tici_shard_meta;")
+            print(f"Shard meta count: {result[0][0]}")
 
     def run_qps_benchmark(self):
         """Run the concurrent QPS benchmark"""
@@ -208,21 +163,8 @@ class TICIBenchmarkRunner:
                 )
                 final_results.append(result)
 
-            # Print results (similar to what the original script would do)
-            from tabulate import tabulate
-            table_data = []
-            for res in final_results:
-                table_data.append([
-                    f"{res['matched_rows']:,}",
-                    f"{res['best_qps']:.2f}",
-                    f"{res['best_avg_latency']:.2f}",
-                    res['best_concurrency']
-                ])
-
-            headers = ["Matched rows", "QPS",
-                       "Average latency (ms)", "Concurrency"]
-            print("\n📊 Final QPS Benchmark Results:")
-            print(tabulate(table_data, headers=headers, tablefmt="pipe"))
+            # Print results using utility function
+            utils.format_qps_results(final_results)
             print("✅ QPS benchmark completed")
 
         except Exception as e:
@@ -251,20 +193,8 @@ class TICIBenchmarkRunner:
                 if result:
                     results.append(result)
 
-            # Print results (similar to what the original script would do)
-            from tabulate import tabulate
-            table_data = []
-            for res in results:
-                table_data.append([
-                    f"{res['matched_rows']:,}",
-                    f"{res['min']:.2f}",
-                    f"{res['max']:.2f}",
-                    f"{res['avg']:.2f}"
-                ])
-
-            headers = ["Matched rows", "Min (ms)", "Max (ms)", "Avg (ms)"]
-            print("\n📈 Latency Benchmark Results:")
-            print(tabulate(table_data, headers=headers, tablefmt="pipe"))
+            # Print results using utility function
+            utils.format_latency_results(results)
             print("✅ Latency benchmark completed")
 
         except Exception as e:
@@ -304,21 +234,16 @@ class TICIBenchmarkRunner:
                 output_lines.append(line)
                 # Look for the MySQL connection string
                 if "Connect TiDB:" in line:
-                    try:
-                        # Extract host and port from line like:
-                        # "Connect TiDB:    mysql --comments --host 127.0.0.1 --port 44415 -u root"
-                        parts = line.split()
-                        host_index = parts.index("--host") + 1
-                        port_index = parts.index("--port") + 1
-
-                        self.mysql_host = parts[host_index]
-                        self.mysql_port = int(parts[port_index])
-
+                    connection_info = utils.parse_mysql_connection_from_tiup_output(
+                        line)
+                    if connection_info:
+                        self.mysql_host, self.mysql_port = connection_info
                         print(
                             f"📊 Found MySQL connection: {self.mysql_host}:{self.mysql_port}")
                         return
-                    except (ValueError, IndexError) as e:
-                        print(f"⚠️ Could not parse MySQL connection info: {e}")
+                    else:
+                        print(
+                            f"⚠️ Could not parse MySQL connection info from: {line}")
 
             time.sleep(0.1)
         raise TimeoutError(f"Cluster didn't start within {timeout} seconds")
