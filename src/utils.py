@@ -202,46 +202,6 @@ def list_s3_files_with_prefix(s3_client, bucket: str, prefix: str) -> List[Dict[
         raise RuntimeError(f"Failed to list S3 files: {e}")
 
 
-def print_benchmark_results(
-    results: List[Dict[str, Any]],
-    headers: List[str],
-    title: str,
-    number_format: str = ".2f",
-):
-    """
-    Print benchmark results in a formatted table.
-
-    Args:
-        results: List of result dictionaries
-        headers: Table column headers
-        title: Table title
-        number_format: Format string for numeric values
-    """
-    if not results:
-        print(f"\n{title}: No results to display")
-        return
-
-    table_data = []
-
-    # Dynamic table generation based on result keys
-    for res in results:
-        row = []
-        for key, value in res.items():
-            if isinstance(value, (int, float)):
-                if key.endswith("_rows") or key == "matched_rows":
-                    row.append(f"{value:,}")
-                elif isinstance(value, float):
-                    row.append(f"{value:{number_format}}")
-                else:
-                    row.append(str(value))
-            else:
-                row.append(str(value))
-        table_data.append(row)
-
-    print(f"\n{title}:")
-    print(tabulate(table_data, headers=headers, tablefmt="pipe"))
-
-
 def format_qps_results(results: List[Dict[str, Any]]) -> None:
     """
     Format and print QPS benchmark results.
@@ -286,32 +246,6 @@ def format_latency_results(results: List[Dict[str, Any]]) -> None:
     headers = ["Matched rows", "Min (ms)", "Max (ms)", "Avg (ms)"]
     print("\n📈 Latency Benchmark Results:")
     print(tabulate(table_data, headers=headers, tablefmt="pipe"))
-
-
-def parse_mysql_connection_from_tiup_output(line: str) -> Optional[Tuple[str, int]]:
-    """
-    Parse MySQL connection info from TiUP output line.
-
-    Args:
-        line: TiUP output line
-
-    Returns:
-        Tuple of (host, port) or None if not found
-    """
-    if "Connect TiDB:" not in line:
-        return None
-
-    try:
-        parts = line.split()
-        host_index = parts.index("--host") + 1
-        port_index = parts.index("--port") + 1
-
-        host = parts[host_index]
-        port = int(parts[port_index])
-
-        return host, port
-    except (ValueError, IndexError):
-        return None
 
 
 def modify_toml_config_value(config_path: str, key_path: str, new_value: str) -> None:

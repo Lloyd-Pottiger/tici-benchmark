@@ -83,9 +83,7 @@ class TICIBenchmarkRunner:
         # Wait for cluster to start and extract MySQL connection info
         print("⏳ Waiting for cluster to start...")
         self.extract_mysql_info_from_tiup_output()
-        print(
-            f"✅ TiUP cluster is ready! MySQL available at: mysql --comments --host {self.mysql_host} --port {self.mysql_port} -u root test"
-        )
+        print(f"✅ TiUP cluster is ready!")
 
     def stop_tiup_cluster(self):
         """Stop the TiUP cluster"""
@@ -254,16 +252,11 @@ class TICIBenchmarkRunner:
             line = self.tiup_process.stdout.readline().strip()
             if line:
                 output_lines.append(line)
-                # Look for the MySQL connection string
-                if "Connect TiDB:" in line:
-                    connection_info = utils.parse_mysql_connection_from_tiup_output(line)
-                    if connection_info:
-                        self.mysql_host, self.mysql_port = connection_info
-                        print(f"📊 Found MySQL connection: {self.mysql_host}:{self.mysql_port}")
-                        return
-                    else:
-                        print(
-                            f"⚠️ Could not parse MySQL connection info from: {line}")
+                if "Connect TiDB:" in line or "TiDB Dashboard:" in line:
+                    print(line)
+                if "Grafana:" in line:
+                    print(line)
+                    return
 
             time.sleep(0.1)
         raise TimeoutError(f"Cluster didn't start within {timeout} seconds")
