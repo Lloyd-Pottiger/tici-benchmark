@@ -28,10 +28,11 @@ def parse_args():
         help=f"Number of TiFlash instances (default: 1)"
     )
     parser.add_argument(
-        "size",
-        nargs="?",
+        "--size",
+        type=str,
+        default="16MB",
         choices=config.TEST_SIZES,
-        help=f"Shard max size to test (choices: {', '.join(config.TEST_SIZES)}). If not provided, all sizes will be tested."
+        help=f"Shard max size to test (choices: {', '.join(config.TEST_SIZES)})."
     )
 
     # Parse arguments
@@ -48,19 +49,31 @@ def main():
     shard_size = args.size
 
     try:
-        if shard_size:
-            runner = TICIBenchmarkRunner(
-                worker_count, tiflash_count, shard_size)
-            runner.run()
-        else:
-            # Run tests for all sizes
-            print(
-                f"ℹ️ Running tests for all sizes: {', '.join(config.TEST_SIZES)}")
-            for size in config.TEST_SIZES:
-                runner = TICIBenchmarkRunner(
-                    worker_count, tiflash_count, shard_size=size)
-                runner.run()
-                runner.stop_tiup_cluster()
+        print(
+            f"🎯 Starting test with shard.max_size = {shard_size}, tiflash_num = {tiflash_count}, worker_num = {worker_count}")
+        runner = TICIBenchmarkRunner(
+            worker_count, tiflash_count, shard_size=shard_size)
+        # Step 1: Modify config
+        runner.modify_config()
+        # Step 2: Start cluster
+        runner.start_tiup_cluster()
+        # Step 3: Insert data
+        runner.insert_test_data()
+
+        if input("Do you want to create a fulltext index? (y/n): ").strip().lower() == 'y':
+            # Step 4: Create index
+            runner.create_fulltext_index()
+            # Step 5: Verify index
+            runner.verify_index_creation()
+
+        if input("Do you want to run QPS benchmark? (y/n): ").strip().lower() == 'y':
+            # Step 6: Run QPS benchmark
+            runner.run_qps_benchmark()
+
+        if input("Do you want to run latency benchmark? (y/n): ").strip().lower() == 'y':
+            # Step 7: Run latency benchmark
+            runner.run_latency_benchmark()
+
     except KeyboardInterrupt:
         print("\n⚠️ Test interrupted by user")
         return 1
@@ -69,6 +82,7 @@ def main():
         return 1
     finally:
         # Ensure cleanup
+        runner.cleanup()
         runner.stop_tiup_cluster()
 
 

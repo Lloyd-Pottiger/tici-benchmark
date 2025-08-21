@@ -26,22 +26,23 @@ from . import utils
 
 
 class TICIBenchmarkRunner:
-    def __init__(self, worker_count=1, tiflash_count=1, max_rows=1000000):
+    def __init__(self, worker_count=1, tiflash_count=1, max_rows=1000000, shard_size="16MB"):
         self.tiup_process = None
-        self.current_test_size = None
+        self.shard_size = shard_size
         self.worker_count = worker_count
         self.tiflash_count = tiflash_count
         self.mysql_host = "127.0.0.1"
         self.mysql_port = 4000  # Default value, will be updated from tiup output
         self.max_rows = max_rows
 
-    def modify_config(self, max_shard_size):
+    def modify_config(self):
         """Modify config/test-meta.toml with the specified shard.max_size"""
         config_path = os.path.join(config.PROJECT_DIR, "config/test-meta.toml")
-        print(f"📝 Modifying config: shard.max_size = {max_shard_size}")
+        print(f"📝 Modifying config: shard.max_size = {self.shard_size}")
 
-        utils.modify_toml_config_value(config_path, "max_size", max_shard_size)
-        print(f"✅ Config updated: max_size = {max_shard_size}")
+        utils.modify_toml_config_value(
+            config_path, "max_size", self.shard_size)
+        print(f"✅ Config updated: max_size = {self.shard_size}")
 
     def start_tiup_cluster(self):
         """Start TiDB cluster using tiup playground"""
@@ -79,7 +80,7 @@ class TICIBenchmarkRunner:
         print("⏳ Waiting for cluster to start...")
         self.extract_mysql_info_from_tiup_output()
         print(
-            f"✅ TiUP cluster is ready! MySQL available at {self.mysql_host}:{self.mysql_port}")
+            f"✅ TiUP cluster is ready! MySQL available at: mysql --comments --host {self.mysql_host} --port {self.mysql_port} -u root test")
 
     def stop_tiup_cluster(self):
         """Stop the TiUP cluster"""
@@ -248,16 +249,16 @@ class TICIBenchmarkRunner:
             time.sleep(0.1)
         raise TimeoutError(f"Cluster didn't start within {timeout} seconds")
 
-    def run(self, max_size):
+    def run(self):
         """Run a complete test cycle for a given max_size"""
-        self.current_test_size = max_size
         print(f"\n{'='*60}")
-        print(f"🎯 Starting test with max_size = {max_size}")
+        print(
+            f"🎯 Starting test with shard.max_size = {self.shard_size}, tiflash_num = {self.tiflash_count}, worker_num = {self.worker_count}")
         print(f"{'='*60}")
 
         try:
             # Step 1: Modify config
-            self.modify_config(max_size)
+            self.modify_config()
 
             # Step 2: Start cluster
             self.start_tiup_cluster()
@@ -277,10 +278,7 @@ class TICIBenchmarkRunner:
             # Step 7: Run latency benchmark
             self.run_latency_benchmark()
 
-            print(f"✅ Test completed successfully for max_size = {max_size}")
-
         except Exception as e:
-            print(f"❌ Test failed for max_size = {max_size}: {e}")
             raise
 
         finally:

@@ -45,19 +45,14 @@ def delete_all_files_in_prefix(s3_client, bucket: str, prefix: str):
 
 def cleanup_s3_files(config_file):
     """Main function to coordinate cleanup"""
-    print("🧹 Starting cleanup process...")
-
     try:
         # Get S3 configuration and create client
         endpoint, access_key, secret_key, bucket, prefix = utils.get_s3_config(
             config_file)
         s3_client = utils.create_s3_client(endpoint, access_key, secret_key)
 
-        print(f"Using S3 config from {config_file}:")
-        print(f"  Endpoint: {endpoint}")
-        print(f"  Bucket: {bucket}")
-        print(f"  Prefix: {prefix}")
-        print(f"Connected to S3 endpoint: {endpoint}")
+        print(
+            f"Using S3 config from {config_file}: s3://{bucket}/{prefix} in {endpoint}")
 
         # Delete files in S3/MinIO
         delete_all_files_in_prefix(s3_client, bucket, prefix)

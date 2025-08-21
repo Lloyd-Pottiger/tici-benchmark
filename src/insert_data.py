@@ -4,7 +4,7 @@ import argparse
 from . import utils
 
 
-def read_hdfs_logs(file_path, max_rows=None, batch_size=10000):
+def read_hdfs_logs(file_path, max_rows=None, batch_size=50000):
     """Read HDFS logs from a JSON file with optional row limit
     Returns a generator that yields batches of logs to avoid loading all into memory"""
     total_read = 0
@@ -107,7 +107,7 @@ def write_logs_to_csv(logs, outfile):
         print(f"Error writing logs to CSV: {e}")
 
 
-def process_hdfs_logs(table_name, max_rows=None, batch_size=10000, tidb_host="localhost", tidb_port=4000, out=None):
+def process_hdfs_logs(table_name, max_rows=None, batch_size=50000, tidb_host="localhost", tidb_port=4000, out=None):
     """Process HDFS logs and insert them into the database in batches"""
     outfile = None
     if out:
@@ -147,8 +147,8 @@ if __name__ == "__main__":
                         help='Name of the database table')
     parser.add_argument('--max_rows', type=int, default=None,
                         help='Maximum number of rows to process (optional)')
-    parser.add_argument('--batch_size', type=int, default=10000,
-                        help='Number of rows to process in each batch (default: 10000)')
+    parser.add_argument('--batch_size', type=int, default=50000,
+                        help='Number of rows to process in each batch (default: 50000)')
     parser.add_argument('--tidb_host', type=str, default='localhost',
                         help='TiDB address to connect to (default: localhost)')
     parser.add_argument('--tidb_port', type=int, default=4000,
