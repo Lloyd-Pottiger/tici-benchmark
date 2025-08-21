@@ -1,18 +1,5 @@
 # TICI Benchmark
 
-## Install Dataset
-
-```
-wget https://quickwit-datasets-public.s3.amazonaws.com/hdfs-logs-multitenants.json.gz
-gzip -d ${ASSET_DIR}/hdfs-logs-multitenants.json.gz
-```
-
-## Setup TiUP Mirror
-
-```
-tiup mirror set http://tiup.pingcap.net:8988
-```
-
 ## Setup Minio locally
 
 First, run Minio in a Docker container:
@@ -31,5 +18,7 @@ sudo docker exec $ContainerID mc mb myminio/logbucket
 ## Run the Benchmark
 
 ```bash
-python main.py
+make test
+# or
+make test-multi-tiflash
 ```
