@@ -3,7 +3,6 @@
 Common utility functions for TICI benchmark.
 """
 
-import os
 import sys
 import json
 import mysql.connector
