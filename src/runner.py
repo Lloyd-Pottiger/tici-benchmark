@@ -37,7 +37,8 @@ class TICIBenchmarkRunner:
 
     def modify_config(self):
         """Modify config/test-meta.toml with the specified shard.max_size"""
-        config_path = os.path.join(config.PROJECT_DIR, "config/test-meta.toml")
+        config_path = os.path.join(
+            config.PROJECT_DIR, "config", "test-meta.toml")
         print(f"📝 Modifying config: shard.max_size = {self.shard_size}")
 
         utils.modify_toml_config_value(
