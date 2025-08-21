@@ -120,8 +120,7 @@ def process_hdfs_logs(table_name, max_rows=None, batch_size=50000, tidb_host="lo
         total_inserted = 0
         assert_dir = os.getenv('ASSET_DIR', "").rstrip('/')
         infilename = '{}/hdfs-logs-multitenants.json'.format(assert_dir)
-        print(
-            f"Processing logs from '{infilename}' in batches of {batch_size}")
+        print(f"Processing logs from '{infilename}' in batches of {batch_size}")
 
         with utils.mysql_connection(tidb_host, tidb_port, database='test') as connection:
             # Create table if it doesn't exist
@@ -158,6 +157,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print(f"\nProcessing HDFS logs into database table '{args.table_name}':")
-    process_hdfs_logs(args.table_name, args.max_rows,
-                      args.batch_size, args.tidb_host, args.tidb_port, args.out)
+    process_hdfs_logs(args.table_name, args.max_rows, args.batch_size, args.tidb_host, args.tidb_port, args.out)
     print("\nData processing complete.")

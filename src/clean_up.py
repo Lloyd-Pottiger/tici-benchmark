@@ -30,7 +30,7 @@ def delete_all_files_in_prefix(s3_client, bucket: str, prefix: str):
 
         # Delete all objects in batches (S3 allows up to 1000 objects per delete)
         for i in range(0, len(objects_to_delete), 1000):
-            batch = objects_to_delete[i:i+1000]
+            batch = objects_to_delete[i:i + 1000]
             s3_client.delete_objects(
                 Bucket=bucket,
                 Delete={'Objects': batch}
@@ -47,12 +47,10 @@ def cleanup_s3_files(config_file):
     """Main function to coordinate cleanup"""
     try:
         # Get S3 configuration and create client
-        endpoint, access_key, secret_key, bucket, prefix = utils.get_s3_config(
-            config_file)
+        endpoint, access_key, secret_key, bucket, prefix = utils.get_s3_config(config_file)
         s3_client = utils.create_s3_client(endpoint, access_key, secret_key)
 
-        print(
-            f"Using S3 config from {config_file}: s3://{bucket}/{prefix} in {endpoint}")
+        print(f"Using S3 config from {config_file}: s3://{bucket}/{prefix} in {endpoint}")
 
         # Delete files in S3/MinIO
         delete_all_files_in_prefix(s3_client, bucket, prefix)

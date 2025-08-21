@@ -38,7 +38,7 @@ def mysql_connection(host: str, port: int, user: str = "root", database: Optiona
             port=port,
             user=user,
             database=database,
-            connection_timeout=timeout
+            connection_timeout=timeout,
         )
         yield connection
     except Error as e:
@@ -71,7 +71,7 @@ def execute_sql(connection, sql: str, params: Optional[tuple] = None) -> Optiona
         else:
             cursor.execute(sql)
 
-        if sql.strip().upper().startswith('SELECT'):
+        if sql.strip().upper().startswith("SELECT"):
             return cursor.fetchall()
         else:
             connection.commit()
@@ -134,11 +134,11 @@ def create_s3_client(endpoint: str, access_key: str, secret_key: str):
     try:
         session = boto3.session.Session()
         return session.client(
-            's3',
-            endpoint_url=f'http://{endpoint}',
+            "s3",
+            endpoint_url=f"http://{endpoint}",
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
-            config=Config(signature_version='s3v4'),
+            config=Config(signature_version="s3v4"),
         )
     except Exception as e:
         raise RuntimeError(f"Failed to create S3 client: {e}")
@@ -159,16 +159,15 @@ def get_s3_config(config_file: str) -> Tuple[str, str, str, str, str]:
     """
     config_data = load_toml_config(config_file)
 
-    if 's3' not in config_data:
+    if "s3" not in config_data:
         raise RuntimeError("No S3 configuration found in config file")
 
-    s3_config = config_data['s3']
-    endpoint = s3_config.get(
-        'endpoint', '127.0.0.1:9000').replace('http://', '')
-    access_key = s3_config.get('access_key', 'minioadmin')
-    secret_key = s3_config.get('secret_key', 'minioadmin')
-    bucket = s3_config.get('bucket', 'logbucket')
-    prefix = s3_config.get('prefix', 'qiuyang_test')
+    s3_config = config_data["s3"]
+    endpoint = s3_config.get("endpoint", "127.0.0.1:9000").replace("http://", "")
+    access_key = s3_config.get("access_key", "minioadmin")
+    secret_key = s3_config.get("secret_key", "minioadmin")
+    bucket = s3_config.get("bucket", "logbucket")
+    prefix = s3_config.get("prefix", "qiuyang_test")
 
     return endpoint, access_key, secret_key, bucket, prefix
 
@@ -190,24 +189,25 @@ def list_s3_files_with_prefix(s3_client, bucket: str, prefix: str) -> List[Dict[
     """
     try:
         files = []
-        paginator = s3_client.get_paginator('list_objects_v2')
+        paginator = s3_client.get_paginator("list_objects_v2")
         pages = paginator.paginate(Bucket=bucket, Prefix=prefix)
 
         for page in pages:
-            if 'Contents' in page:
-                for obj in page['Contents']:
-                    files.append({
-                        'key': obj['Key'],
-                        'last_modified': obj['LastModified']
-                    })
+            if "Contents" in page:
+                for obj in page["Contents"]:
+                    files.append({"key": obj["Key"], "last_modified": obj["LastModified"]})
 
         return files
     except Exception as e:
         raise RuntimeError(f"Failed to list S3 files: {e}")
 
 
-def print_benchmark_results(results: List[Dict[str, Any]], headers: List[str],
-                            title: str, number_format: str = ".2f"):
+def print_benchmark_results(
+    results: List[Dict[str, Any]],
+    headers: List[str],
+    title: str,
+    number_format: str = ".2f",
+):
     """
     Print benchmark results in a formatted table.
 
@@ -228,7 +228,7 @@ def print_benchmark_results(results: List[Dict[str, Any]], headers: List[str],
         row = []
         for key, value in res.items():
             if isinstance(value, (int, float)):
-                if key.endswith('_rows') or key == 'matched_rows':
+                if key.endswith("_rows") or key == "matched_rows":
                     row.append(f"{value:,}")
                 elif isinstance(value, float):
                     row.append(f"{value:{number_format}}")
@@ -251,12 +251,14 @@ def format_qps_results(results: List[Dict[str, Any]]) -> None:
     """
     table_data = []
     for res in results:
-        table_data.append([
-            f"{res['matched_rows']:,}",
-            f"{res['best_qps']:.2f}",
-            f"{res['best_avg_latency']:.2f}",
-            res['best_concurrency']
-        ])
+        table_data.append(
+            [
+                f"{res['matched_rows']:,}",
+                f"{res['best_qps']:.2f}",
+                f"{res['best_avg_latency']:.2f}",
+                res["best_concurrency"],
+            ]
+        )
 
     headers = ["Matched rows", "QPS", "Average latency (ms)", "Concurrency"]
     print("\n📊 Final QPS Benchmark Results:")
@@ -272,12 +274,14 @@ def format_latency_results(results: List[Dict[str, Any]]) -> None:
     """
     table_data = []
     for res in results:
-        table_data.append([
-            f"{res['matched_rows']:,}",
-            f"{res['min']:.2f}",
-            f"{res['max']:.2f}",
-            f"{res['avg']:.2f}"
-        ])
+        table_data.append(
+            [
+                f"{res['matched_rows']:,}",
+                f"{res['min']:.2f}",
+                f"{res['max']:.2f}",
+                f"{res['avg']:.2f}",
+            ]
+        )
 
     headers = ["Matched rows", "Min (ms)", "Max (ms)", "Avg (ms)"]
     print("\n📈 Latency Benchmark Results:")
@@ -324,13 +328,13 @@ def modify_toml_config_value(config_path: str, key_path: str, new_value: str) ->
     """
     try:
         # Read the current config
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             lines = f.readlines()
 
         # Modify the specific line
-        with open(config_path, 'w') as f:
+        with open(config_path, "w") as f:
             for line in lines:
-                if line.strip().startswith(f'{key_path} ='):
+                if line.strip().startswith(f"{key_path} ="):
                     f.write(f'{key_path} = "{new_value}"\n')
                 else:
                     f.write(line)
@@ -339,8 +343,7 @@ def modify_toml_config_value(config_path: str, key_path: str, new_value: str) ->
         raise RuntimeError(f"Failed to modify config file: {e}")
 
 
-def validate_cdc_file_sequence(s3_client, bucket: str, directory_prefix: str,
-                               expected_last_file: str) -> Tuple[bool, str, int]:
+def validate_cdc_file_sequence(s3_client, bucket: str, directory_prefix: str, expected_last_file: str) -> bool:
     """
     Validate that the expected CDC file is actually the latest in the S3 directory.
 
@@ -351,32 +354,22 @@ def validate_cdc_file_sequence(s3_client, bucket: str, directory_prefix: str,
         expected_last_file: Expected last file path
 
     Returns:
-        Tuple of (is_valid, actual_last_file, total_files_count)
+        True if the expected file is the latest, False otherwise
 
     Raises:
         RuntimeError: If S3 operations fail
     """
     try:
         # Get all CDC files in the directory and subdirectories
-        all_files = list_s3_files_with_prefix(
-            s3_client, bucket, directory_prefix + '/')
-
+        all_files = list_s3_files_with_prefix(s3_client, bucket, directory_prefix)
         # Filter only CDC*.json files
-        cdc_files = [
-            f for f in all_files
-            if f['key'].endswith('.json') and '/CDC' in f['key']
-        ]
-
+        cdc_files = [f for f in all_files if f["key"].endswith(".json") and "/CDC" in f["key"]]
         if not cdc_files:
             raise RuntimeError(f"No CDC files found under {directory_prefix}/")
 
         # Sort files by last modified time (descending)
-        cdc_files.sort(key=lambda x: x['last_modified'], reverse=True)
-
-        actual_last_file = cdc_files[0]['key']
-        is_valid = actual_last_file == expected_last_file
-
-        return is_valid, actual_last_file, len(cdc_files)
+        cdc_files.sort(key=lambda x: x["last_modified"], reverse=True)
+        return cdc_files[0]["key"] == expected_last_file
 
     except Exception as e:
         raise RuntimeError(f"Failed to validate CDC file sequence: {e}")

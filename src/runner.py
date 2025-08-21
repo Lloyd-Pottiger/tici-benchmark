@@ -26,7 +26,9 @@ from . import utils
 
 
 class TICIBenchmarkRunner:
-    def __init__(self, worker_count=1, tiflash_count=1, max_rows=1000000, shard_size="16MB"):
+    def __init__(
+        self, worker_count=1, tiflash_count=1, max_rows=1000000, shard_size="16MB"
+    ):
         self.tiup_process = None
         self.shard_size = shard_size
         self.worker_count = worker_count
@@ -48,7 +50,8 @@ class TICIBenchmarkRunner:
     def start_tiup_cluster(self):
         """Start TiDB cluster using tiup playground"""
         print(
-            f"🚀 Starting TiUP cluster (workers: {self.worker_count}, tiflash: {self.tiflash_count})")
+            f"🚀 Starting TiUP cluster (workers: {self.worker_count}, tiflash: {self.tiflash_count})"
+        )
 
         # Stop any existing cluster
         self.stop_tiup_cluster()
@@ -60,7 +63,7 @@ class TICIBenchmarkRunner:
             "--tici.meta", "1",
             "--tici.worker", str(self.worker_count),
             "--tiflash", str(self.tiflash_count),
-            "--tici.config", "./config"
+            "--tici.config", "./config",
         ]
 
         print(f"Command: {' '.join(cmd)}")
@@ -74,14 +77,15 @@ class TICIBenchmarkRunner:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            preexec_fn=os.setsid  # Create new process group
+            preexec_fn=os.setsid,  # Create new process group
         )
 
         # Wait for cluster to start and extract MySQL connection info
         print("⏳ Waiting for cluster to start...")
         self.extract_mysql_info_from_tiup_output()
         print(
-            f"✅ TiUP cluster is ready! MySQL available at: mysql --comments --host {self.mysql_host} --port {self.mysql_port} -u root test")
+            f"✅ TiUP cluster is ready! MySQL available at: mysql --comments --host {self.mysql_host} --port {self.mysql_port} -u root test"
+        )
 
     def stop_tiup_cluster(self):
         """Stop the TiUP cluster"""
@@ -92,11 +96,10 @@ class TICIBenchmarkRunner:
             try:
                 os.killpg(os.getpgid(self.tiup_process.pid), signal.SIGTERM)
                 self.tiup_process.wait(timeout=10)
-            except:
+            except BaseException:
                 try:
-                    os.killpg(os.getpgid(self.tiup_process.pid),
-                              signal.SIGKILL)
-                except:
+                    os.killpg(os.getpgid(self.tiup_process.pid), signal.SIGKILL)
+                except BaseException:
                     pass
             self.tiup_process = None
 
@@ -110,7 +113,7 @@ class TICIBenchmarkRunner:
             table_name="hdfs_10w",
             max_rows=self.max_rows,
             tidb_host=self.mysql_host,
-            tidb_port=self.mysql_port
+            tidb_port=self.mysql_port,
         )
 
         print("✅ Test data inserted successfully")
@@ -123,22 +126,42 @@ class TICIBenchmarkRunner:
             with utils.mysql_connection(self.mysql_host, self.mysql_port) as connection:
                 utils.execute_sql(
                     connection,
-                    "ALTER TABLE test.hdfs_10w ADD FULLTEXT INDEX ft_index (body) WITH PARSER standard;"
+                    "ALTER TABLE test.hdfs_10w ADD FULLTEXT INDEX ft_index (body) WITH PARSER standard;",
                 )
             print("✅ Fulltext index created successfully")
         except Exception as e:
             raise RuntimeError(f"Index creation failed: {e}")
 
-    # FIXME: chekc s3 file and progress
     def verify_index_creation(self):
         """Verify that the index was created successfully"""
         print("🔍 Verifying index creation...")
+        config_path = os.path.join(
+            config.PROJECT_DIR, "config", "test-meta.toml")
+        endpoint, access_key, secret_key, bucket, prefix = utils.get_s3_config(
+            config_path
+        )
+        s3_client = utils.create_s3_client(endpoint, access_key, secret_key)
 
-        time.sleep(60)  # Give some time for index to be created
+        is_valid = False
+        while not is_valid:
+            time.sleep(5)  # Wait before next check
+            with utils.mysql_connection(self.mysql_host, self.mysql_port, timeout=60) as connection:
+                result = utils.execute_sql(connection, "SELECT distinct progress FROM tici.tici_shard_meta;")
+                for row in result:
+                    progress = utils.safe_json_parse(row[0])
+                    cdc_s3_last_file = progress.get("cdc_s3_last_file")
+                    is_valid = utils.validate_cdc_file_sequence(
+                        s3_client,
+                        bucket,
+                        f"{prefix}/cdc/test/hdfs_10w",
+                        cdc_s3_last_file,
+                    )
+                    if is_valid:
+                        print(f"✅ Index verified successfully with last file: {cdc_s3_last_file}")
+                        break
 
         with utils.mysql_connection(self.mysql_host, self.mysql_port) as connection:
-            result = utils.execute_sql(
-                connection, "SELECT count(*) FROM tici.tici_shard_meta;")
+            result = utils.execute_sql(connection, "SELECT count(*) FROM tici.tici_shard_meta;")
             print(f"Shard meta count: {result[0][0]}")
 
     def run_qps_benchmark(self):
@@ -150,8 +173,7 @@ class TICIBenchmarkRunner:
             final_results = []
 
             for word, rows in config.WORD_LIST:
-                print(
-                    f"\n🚀 Starting concurrent benchmark for word: '{word}', matched rows: {rows}")
+                print(f"\n🚀 Starting concurrent benchmark for word: '{word}', matched rows: {rows}")
                 print("-" * 50)
 
                 result = qps.get_peak_qps(
@@ -161,7 +183,7 @@ class TICIBenchmarkRunner:
                     database="test",
                     query_template=config.QUERY_TEMPLATE,
                     word=word,
-                    matched_rows=rows
+                    matched_rows=rows,
                 )
                 final_results.append(result)
 
@@ -181,8 +203,7 @@ class TICIBenchmarkRunner:
             results = []
 
             for word in config.WORD_LIST:
-                print(
-                    f"Running benchmark for word: '{word[0]}', matched rows: {word[1]}")
+                print(f"Running benchmark for word: '{word[0]}', matched rows: {word[1]}")
                 result = latency.run_query_benchmark(
                     host=self.mysql_host,
                     port=self.mysql_port,
@@ -190,7 +211,7 @@ class TICIBenchmarkRunner:
                     database="test",
                     query_template=config.QUERY_TEMPLATE,
                     word=word,
-                    iterations=100
+                    iterations=100,
                 )
                 if result:
                     results.append(result)
@@ -208,8 +229,7 @@ class TICIBenchmarkRunner:
 
         try:
             # Use direct function call instead of subprocess
-            clean_up.cleanup_s3_files(os.path.join(
-                config.PROJECT_DIR, 'config', 'test-meta.toml'))
+            clean_up.cleanup_s3_files(os.path.join(config.PROJECT_DIR, "config", "test-meta.toml"))
         except Exception as e:
             print(f"⚠️ Cleanup encountered error: {e}")
 
@@ -236,12 +256,10 @@ class TICIBenchmarkRunner:
                 output_lines.append(line)
                 # Look for the MySQL connection string
                 if "Connect TiDB:" in line:
-                    connection_info = utils.parse_mysql_connection_from_tiup_output(
-                        line)
+                    connection_info = utils.parse_mysql_connection_from_tiup_output(line)
                     if connection_info:
                         self.mysql_host, self.mysql_port = connection_info
-                        print(
-                            f"📊 Found MySQL connection: {self.mysql_host}:{self.mysql_port}")
+                        print(f"📊 Found MySQL connection: {self.mysql_host}:{self.mysql_port}")
                         return
                     else:
                         print(
@@ -254,7 +272,8 @@ class TICIBenchmarkRunner:
         """Run a complete test cycle for a given max_size"""
         print(f"\n{'='*60}")
         print(
-            f"🎯 Starting test with shard.max_size = {self.shard_size}, tiflash_num = {self.tiflash_count}, worker_num = {self.worker_count}")
+            f"🎯 Starting test with shard.max_size = {self.shard_size}, tiflash_num = {self.tiflash_count}, worker_num = {self.worker_count}"
+        )
         print(f"{'='*60}")
 
         try:
@@ -284,5 +303,5 @@ class TICIBenchmarkRunner:
 
         finally:
             # Step 8: Always cleanup
-            self.cleanup()
             self.stop_tiup_cluster()
+            self.cleanup()

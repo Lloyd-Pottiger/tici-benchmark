@@ -47,8 +47,7 @@ if __name__ == "__main__":
     # Collect all results
     results = []
     for word in config.WORD_LIST:
-        print(
-            f"Running benchmark for word: '{word[0]}', matched rows: {word[1]}")
+        print(f"Running benchmark for word: '{word[0]}', matched rows: {word[1]}")
         result = run_query_benchmark(
             host=host,
             port=port,

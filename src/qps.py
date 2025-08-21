@@ -47,8 +47,7 @@ def worker(host, port, user, database, query_template, word, duration):
 
 def get_qps(host, port, user, database, query_template, word, matched_rows, concurrency):
     with multiprocessing.Pool(processes=concurrency) as pool:
-        worker_args = repeat(
-            (host, port, user, database, query_template, word, config.TEST_DURATION), concurrency)
+        worker_args = repeat((host, port, user, database, query_template, word, config.TEST_DURATION), concurrency)
         start_time = time.time()
         worker_results = pool.starmap(worker, worker_args)
         end_time = time.time()
@@ -60,8 +59,7 @@ def get_qps(host, port, user, database, query_template, word, matched_rows, conc
     qps = total_queries / actual_duration if actual_duration > 0 else 0
     avg_latency_ms = mean(all_latencies) * 1000 if all_latencies else 0
 
-    print(
-        f"Concurrency: {concurrency}, QPS: {qps:.2f}, Avg Latency: {avg_latency_ms:.2f} ms")
+    print(f"Concurrency: {concurrency}, QPS: {qps:.2f}, Avg Latency: {avg_latency_ms:.2f} ms")
     return {
         "matched": f"({word}: {matched_rows})",
         "concurrency": concurrency,
@@ -75,12 +73,10 @@ def get_peak_qps(host, port, user, database, query_template, word, matched_rows)
     all_results = []
 
     for concurrency in config.CONCURRENCY_LEVELS:
-        all_results.append(get_qps(host, port, user, database,
-                           query_template, word, matched_rows, concurrency))
+        all_results.append(get_qps(host, port, user, database, query_template, word, matched_rows, concurrency))
 
     # Find the best performing concurrency level (highest QPS)
-    best_result = max(
-        all_results, key=lambda x: x['qps']) if all_results else None
+    best_result = max(all_results, key=lambda x: x['qps']) if all_results else None
 
     return {
         "matched_rows": matched_rows,
@@ -98,12 +94,10 @@ if __name__ == "__main__":
     database = "test"
 
     for word, rows in config.WORD_LIST:
-        print(
-            f"\n🚀 Starting concurrent benchmark for word: '{word}', matched rows: {rows}")
+        print(f"\n🚀 Starting concurrent benchmark for word: '{word}', matched rows: {rows}")
         print("-" * 50)
 
-        result = get_peak_qps(host, port, user, database,
-                              config.QUERY_TEMPLATE, word, rows)
+        result = get_peak_qps(host, port, user, database, config.QUERY_TEMPLATE, word, rows)
         final_results.append(result)
 
     # Format and print the final table
