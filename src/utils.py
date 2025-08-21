@@ -15,7 +15,7 @@ from typing import Dict, List, Any, Optional, Tuple
 
 
 @contextmanager
-def mysql_connection(host: str, port: int, user: str = "root", database: Optional[str] = None):
+def mysql_connection(host: str, port: int, user: str = "root", database: Optional[str] = None, timeout: int = 60):
     """
     Context manager for MySQL database connections.
 
@@ -38,7 +38,7 @@ def mysql_connection(host: str, port: int, user: str = "root", database: Optiona
             port=port,
             user=user,
             database=database,
-            connection_timeout=10
+            connection_timeout=timeout
         )
         yield connection
     except Error as e:
