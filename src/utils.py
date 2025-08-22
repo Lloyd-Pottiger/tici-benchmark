@@ -83,6 +83,34 @@ def execute_sql(connection, sql: str, params: Optional[tuple] = None) -> Optiona
             cursor.close()
 
 
+def parse_information_from_sql(sql: str) -> Tuple[str, str]:
+    """
+    Parse table name, and index name from ALTER TABLE SQL statement.
+    This assumes the SQL follows the format:
+    ALTER TABLE table_name ADD FULLTEXT INDEX index_name (column_name);
+
+    Args:
+        sql: Alter Table SQL statement string
+
+    Returns:
+        Tuple of (table_name, index_name)
+
+    Raises:
+        ValueError: If SQL does not match expected format
+    """
+    parts = sql.split()
+    if len(parts) < 8 or parts[0].upper() != "ALTER" or parts[1].upper() != "TABLE":
+        raise ValueError(f"Invalid ALTER TABLE SQL format: {sql}")
+
+    table_name = parts[2]
+    table_name_parts = table_name.split('.')
+    if len(table_name_parts) == 2:
+        table_name = table_name_parts[1]  # Use only the table name part
+
+    index_name = parts[7].strip('()')
+    return table_name, index_name
+
+
 def load_toml_config(config_file: str) -> Dict[str, Any]:
     """
     Load TOML configuration file.

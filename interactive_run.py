@@ -28,6 +28,12 @@ def parse_args():
         help=f"Number of TiFlash instances (default: 1)",
     )
     parser.add_argument(
+        '--max_rows',
+        type=int,
+        default=1000000,
+        help='Maximum number of rows to process (default: 1000000)'
+    )
+    parser.add_argument(
         "--size",
         type=str,
         default="16MB",
@@ -47,12 +53,13 @@ def main():
     worker_count = args.workers
     tiflash_count = args.tiflash
     shard_size = args.size
+    max_rows = args.max_rows
 
     try:
         print(
-            f"🎯 Starting test with shard.max_size = {shard_size}, tiflash_num = {tiflash_count}, worker_num = {worker_count}"
+            f"🎯 Starting test with shard.max_size = {shard_size}, tiflash_num = {tiflash_count}, worker_num = {worker_count}, max_rows = {max_rows}"
         )
-        runner = TICIBenchmarkRunner(worker_count, tiflash_count, shard_size=shard_size)
+        runner = TICIBenchmarkRunner(worker_count, tiflash_count, max_rows, shard_size)
         # Step 1: Modify config
         runner.modify_config()
         # Step 2: Start cluster
@@ -60,19 +67,36 @@ def main():
         # Step 3: Insert data
         runner.insert_test_data()
 
-        if input("Do you want to create a fulltext index? (y/n): ").strip().lower() == "y":
-            # Step 4: Create index
-            runner.create_fulltext_index()
-            # Step 5: Verify index
-            runner.verify_index_creation()
-
-        if input("Do you want to run QPS benchmark? (y/n): ").strip().lower() == "y":
-            # Step 6: Run QPS benchmark
-            runner.run_qps_benchmark()
-
-        if input("Do you want to run latency benchmark? (y/n): ").strip().lower() == "y":
-            # Step 7: Run latency benchmark
-            runner.run_latency_benchmark()
+        while True:
+            input_choice = input(
+                "What would you like to do next? (1: Create index, 2: Run QPS benchmark, 3: Run latency benchmark, 4: Stop cluster, q: Quit): ").strip().lower()
+            if input_choice == '1':
+                # Create index
+                try:
+                    sql = input("Enter SQL statement to create fulltext index: ")
+                    if sql:
+                        table_id, index_id = runner.create_fulltext_index(sql)
+                    else:
+                        table_id, index_id = runner.create_fulltext_index()
+                    runner.verify_index_creation(table_id, index_id)
+                except Exception as e:
+                    print(f"❌ Error creating index: {e}")
+            elif input_choice == '2':
+                # Run QPS benchmark
+                runner.run_qps_benchmark()
+            elif input_choice == '3':
+                # Run latency benchmark
+                runner.run_latency_benchmark()
+            elif input_choice == '4':
+                # Stop cluster
+                runner.stop_tiup_cluster()
+                runner.cleanup()
+                break
+            elif input_choice == 'q':
+                # Quit
+                break
+            else:
+                print("Invalid choice, please try again.")
 
     except KeyboardInterrupt:
         print("\n⚠️ Test interrupted by user")

@@ -28,6 +28,12 @@ def parse_args():
         help=f"Number of TiFlash instances (default: 1)"
     )
     parser.add_argument(
+        '--max_rows',
+        type=int,
+        default=1000000,
+        help='Maximum number of rows to process (default: 1000000)'
+    )
+    parser.add_argument(
         "size",
         nargs="?",
         choices=config.TEST_SIZES,
@@ -46,21 +52,20 @@ def main():
     worker_count = args.workers
     tiflash_count = args.tiflash
     shard_size = args.size
+    max_rows = args.max_rows
 
     try:
         if shard_size:
-            runner = TICIBenchmarkRunner(
-                worker_count, tiflash_count, shard_size)
+            runner = TICIBenchmarkRunner(worker_count, tiflash_count, max_rows, shard_size)
             runner.run()
         else:
             # Run tests for all sizes
-            print(
-                f"ℹ️ Running tests for all sizes: {', '.join(config.TEST_SIZES)}")
+            print(f"ℹ️ Running tests for all sizes: {', '.join(config.TEST_SIZES)}")
             for size in config.TEST_SIZES:
-                runner = TICIBenchmarkRunner(
-                    worker_count, tiflash_count, shard_size=size)
+                runner = TICIBenchmarkRunner(worker_count, tiflash_count, max_rows, shard_size=size)
                 runner.run()
                 runner.stop_tiup_cluster()
+                runner.cleanup()
     except KeyboardInterrupt:
         print("\n⚠️ Test interrupted by user")
         return 1
@@ -70,6 +75,7 @@ def main():
     finally:
         # Ensure cleanup
         runner.stop_tiup_cluster()
+        runner.cleanup()
 
 
 if __name__ == "__main__":

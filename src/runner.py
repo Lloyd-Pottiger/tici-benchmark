@@ -116,35 +116,44 @@ class TICIBenchmarkRunner:
 
         print("✅ Test data inserted successfully")
 
-    def create_fulltext_index(self):
+    def create_fulltext_index(self, sql="ALTER TABLE test.hdfs_10w ADD FULLTEXT INDEX ft_index (body) WITH PARSER standard;"):
         """Create fulltext index on the test table"""
         print("🔍 Creating fulltext index...")
 
         try:
             with utils.mysql_connection(self.mysql_host, self.mysql_port) as connection:
-                utils.execute_sql(
+                utils.execute_sql(connection, sql)
+                table_name, index_name = utils.parse_information_from_sql(sql)
+                result = utils.execute_sql(
                     connection,
-                    "ALTER TABLE test.hdfs_10w ADD FULLTEXT INDEX ft_index (body) WITH PARSER standard;",
+                    f"SELECT index_id FROM information_schema.tidb_indexes WHERE table_schema = 'test' and table_name = '{table_name}' and key_name = '{index_name}';"
                 )
-            print("✅ Fulltext index created successfully")
+                index_id = result[0][0] if result else None
+                result = utils.execute_sql(
+                    connection,
+                    f"SELECT TIDB_TABLE_ID FROM information_schema.tables WHERE table_schema = 'test' and table_name = '{table_name}';"
+                )
+                table_id = result[0][0] if result else None
+                print("✅ Fulltext index created successfully")
+                return table_id, index_id
         except Exception as e:
             raise RuntimeError(f"Index creation failed: {e}")
 
-    def verify_index_creation(self):
+    def verify_index_creation(self, table_id=None, index_id=None):
         """Verify that the index was created successfully"""
         print("🔍 Verifying index creation...")
-        config_path = os.path.join(
-            config.PROJECT_DIR, "config", "test-meta.toml")
-        endpoint, access_key, secret_key, bucket, prefix = utils.get_s3_config(
-            config_path
-        )
+        config_path = os.path.join(config.PROJECT_DIR, "config", "test-meta.toml")
+        endpoint, access_key, secret_key, bucket, prefix = utils.get_s3_config(config_path)
         s3_client = utils.create_s3_client(endpoint, access_key, secret_key)
 
         is_valid = False
         while not is_valid:
             time.sleep(5)  # Wait before next check
             with utils.mysql_connection(self.mysql_host, self.mysql_port, timeout=60) as connection:
-                result = utils.execute_sql(connection, "SELECT distinct progress FROM tici.tici_shard_meta;")
+                sql = "SELECT distinct progress FROM tici.tici_shard_meta"
+                if index_id is not None and table_id is not None:
+                    sql += f" WHERE index_id = {index_id} AND table_id = {table_id};"
+                result = utils.execute_sql(connection, sql)
                 for row in result:
                     progress = utils.safe_json_parse(row[0])
                     cdc_s3_last_file = progress.get("cdc_s3_last_file")
