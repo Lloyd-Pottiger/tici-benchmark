@@ -27,15 +27,19 @@ from . import utils
 
 class TICIBenchmarkRunner:
     def __init__(
-        self, worker_count=1, tiflash_count=1, max_rows=1000000, shard_size="16MB"
+        self, worker_count=1, tiflash_count=1, max_rows=1000000, shard_size="16MB", mysql_host=None, mysql_port=None
     ):
         self.tiup_process = None
         self.shard_size = shard_size
         self.worker_count = worker_count
         self.tiflash_count = tiflash_count
-        self.mysql_host = "127.0.0.1"
-        self.mysql_port = 4000  # Default value, will be updated from tiup output
         self.max_rows = max_rows
+        if mysql_host is None and mysql_port is None:
+            self.modify_config()
+            self.start_tiup_cluster()
+        else:
+            self.mysql_host = mysql_host
+            self.mysql_port = mysql_port
 
     def modify_config(self):
         """Modify config/test-meta.toml with the specified shard.max_size"""
@@ -103,12 +107,37 @@ class TICIBenchmarkRunner:
 
         print("✅ TiUP cluster stopped")
 
-    def insert_test_data(self):
+    def create_table(self, table_name="hdfs_10w"):
+        """Create a table for HDFS logs with tenant_id encoded in primary key"""
+        try:
+            with utils.mysql_connection(self.mysql_host, self.mysql_port, database="test") as connection:
+                # Drop table if exists
+                utils.execute_sql(connection, f"DROP TABLE IF EXISTS {table_name};")
+                print(f"Table {table_name} dropped successfully")
+
+                # Create new table
+                create_sql = f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        id BIGINT AUTO_INCREMENT,
+                        timestamp BIGINT,
+                        severity_text VARCHAR(50),
+                        body TEXT,
+                        tenant_id INT,
+                        PRIMARY KEY (tenant_id, id)
+                    )AUTO_INCREMENT = 1000;
+                """
+                utils.execute_sql(connection, create_sql)
+                print(f"Table {table_name} created successfully")
+        except Exception as e:
+            print(f"Error creating table: {e}")
+            raise
+
+    def insert_test_data(self, table_name="hdfs_10w"):
         """Insert test data using read_hdfs.py"""
         print("📊 Inserting test data...")
 
         insert_data.process_hdfs_logs(
-            table_name="hdfs_10w",
+            table_name=table_name,
             max_rows=self.max_rows,
             tidb_host=self.mysql_host,
             tidb_port=self.mysql_port,
@@ -134,7 +163,7 @@ class TICIBenchmarkRunner:
                     f"SELECT TIDB_TABLE_ID FROM information_schema.tables WHERE table_schema = 'test' and table_name = '{table_name}';"
                 )
                 table_id = result[0][0] if result else None
-                print("✅ Fulltext index created successfully")
+                print(f"✅ Fulltext index created successfully, index_id: {index_id}, table_id: {table_id}")
                 return table_id, index_id
         except Exception as e:
             raise RuntimeError(f"Index creation failed: {e}")
@@ -261,7 +290,12 @@ class TICIBenchmarkRunner:
             line = self.tiup_process.stdout.readline().strip()
             if line:
                 output_lines.append(line)
-                if "Connect TiDB:" in line or "TiDB Dashboard:" in line:
+                if "Connect TiDB:" in line:
+                    parts = line.split()
+                    self.mysql_host = parts[5]
+                    self.mysql_port = int(parts[7])
+                    print(line)
+                if "TiDB Dashboard:" in line:
                     print(line)
                 if "Grafana:" in line:
                     print(line)
@@ -279,28 +313,25 @@ class TICIBenchmarkRunner:
         print(f"{'='*60}")
 
         try:
-            # Step 1: Modify config
-            self.modify_config()
+            # Step 1: Create table
+            self.create_table()
 
-            # Step 2: Start cluster
-            self.start_tiup_cluster()
+            # Step 2: Create index
+            self.create_fulltext_index()
 
             # Step 3: Insert data
             self.insert_test_data()
 
-            # Step 4: Create index
-            self.create_fulltext_index()
-
-            # Step 5: Verify index
+            # Step 4: Verify index
             self.verify_index_creation()
 
-            # Step 6: Run QPS benchmark
+            # Step 5: Run QPS benchmark
             self.run_qps_benchmark()
 
-            # Step 7: Run latency benchmark
+            # Step 6: Run latency benchmark
             self.run_latency_benchmark()
 
-        except Exception as e:
+        except Exception:
             raise
 
         finally:

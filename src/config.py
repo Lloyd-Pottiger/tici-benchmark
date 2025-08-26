@@ -8,7 +8,7 @@ CONCURRENCY_LEVELS = [5, 10, 15, 20, 25, 30, 35, 40, 50]
 # The list of shard sizes to test.
 TEST_SIZES = ["16MB", "32MB", "64MB", "128MB"]
 # The template for the SQL query to run.
-QUERY_TEMPLATE = """SELECT id FROM test.hdfs_10w WHERE fts_match_word("xxxx", body) LIMIT 100;"""
+QUERY_TEMPLATE = """SELECT count(id) FROM test.hdfs_10w WHERE fts_match_word("xxxx", body);"""
 # The list of words to match in the FTS query.
 WORD_LIST = [
     ("error", 0),

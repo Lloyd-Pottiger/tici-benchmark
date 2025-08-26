@@ -6,8 +6,6 @@ This script:
 2. Deletes all files under the configured bucket/prefix
 """
 
-import os
-from .config import PROJECT_DIR
 from . import utils
 
 
@@ -59,7 +57,3 @@ def cleanup_s3_files(config_file):
         print(f"Error during cleanup: {e}")
 
     print("✅ Cleanup completed")
-
-
-if __name__ == '__main__':
-    cleanup_s3_files(os.path.join(PROJECT_DIR, 'config', 'test-meta.toml'))

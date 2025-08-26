@@ -107,7 +107,7 @@ def parse_information_from_sql(sql: str) -> Tuple[str, str]:
     if len(table_name_parts) == 2:
         table_name = table_name_parts[1]  # Use only the table name part
 
-    index_name = parts[7].strip('()')
+    index_name = parts[6]
     return table_name, index_name
 
 

@@ -59,17 +59,31 @@ def main():
         print(
             f"🎯 Starting test with shard.max_size = {shard_size}, tiflash_num = {tiflash_count}, worker_num = {worker_count}, max_rows = {max_rows}"
         )
-        runner = TICIBenchmarkRunner(worker_count, tiflash_count, max_rows, shard_size)
-        # Step 1: Modify config
-        runner.modify_config()
-        # Step 2: Start cluster
-        runner.start_tiup_cluster()
-        # Step 3: Insert data
-        runner.insert_test_data()
+
+        mysql_info = input("Input mysql host and port (host:port) or press Enter to start new cluster: ").strip()
+        if mysql_info:
+            if ':' not in mysql_info:
+                raise ValueError("Invalid format. Please enter in 'host:port' format.")
+            host, port_str = mysql_info.split(':', 1)
+            runner = TICIBenchmarkRunner(
+                worker_count,
+                tiflash_count,
+                max_rows,
+                shard_size,
+                mysql_host=host,
+                mysql_port=int(port_str)
+            )
+        else:
+            runner = TICIBenchmarkRunner(worker_count, tiflash_count, max_rows, shard_size)
+
+        # Create table
+        runner.create_table()
+        table_id, index_id = None, None
 
         while True:
             input_choice = input(
-                "What would you like to do next? (1: Create index, 2: Run QPS benchmark, 3: Run latency benchmark, 4: Stop cluster, q: Quit): ").strip().lower()
+                "What would you like to do next? (1: Create index, 2: Insert data, 3: Run QPS benchmark, 4: Run latency benchmark, 5: Stop cluster, q: Quit): "
+            ).strip()
             if input_choice == '1':
                 # Create index
                 try:
@@ -78,16 +92,20 @@ def main():
                         table_id, index_id = runner.create_fulltext_index(sql)
                     else:
                         table_id, index_id = runner.create_fulltext_index()
-                    runner.verify_index_creation(table_id, index_id)
                 except Exception as e:
                     print(f"❌ Error creating index: {e}")
             elif input_choice == '2':
+                # Insert data
+                runner.insert_test_data()
+                if table_id and index_id:
+                    runner.verify_index_creation(table_id, index_id)
+            elif input_choice == '3':
                 # Run QPS benchmark
                 runner.run_qps_benchmark()
-            elif input_choice == '3':
+            elif input_choice == '4':
                 # Run latency benchmark
                 runner.run_latency_benchmark()
-            elif input_choice == '4':
+            elif input_choice == '5':
                 # Stop cluster
                 runner.stop_tiup_cluster()
                 runner.cleanup()

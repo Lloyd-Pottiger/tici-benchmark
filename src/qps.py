@@ -84,21 +84,3 @@ def get_peak_qps(host, port, user, database, query_template, word, matched_rows)
         "best_avg_latency": best_result['avg_latency'] if best_result else 0,
         "best_concurrency": best_result['concurrency'] if best_result else 0
     }
-
-
-if __name__ == "__main__":
-    final_results = []
-    host = "127.0.0.1"
-    port = 4000
-    user = "root"
-    database = "test"
-
-    for word, rows in config.WORD_LIST:
-        print(f"\n🚀 Starting concurrent benchmark for word: '{word}', matched rows: {rows}")
-        print("-" * 50)
-
-        result = get_peak_qps(host, port, user, database, config.QUERY_TEMPLATE, word, rows)
-        final_results.append(result)
-
-    # Format and print the final table
-    utils.format_qps_results(final_results)

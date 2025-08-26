@@ -13,7 +13,5 @@ bucket = "logbucket"
 prefix = "qiuyang_test"
 
 [shard]
-compaction_fragments = 10
-compaction_datafiles = 300
 max_size = "16MB"
 split_threshold = 0.75
