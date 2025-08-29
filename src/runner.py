@@ -317,13 +317,13 @@ class TICIBenchmarkRunner:
             self.create_table()
 
             # Step 2: Create index
-            self.create_fulltext_index()
+            table_id, index_id = self.create_fulltext_index()
 
             # Step 3: Insert data
             self.insert_test_data()
 
             # Step 4: Verify index
-            self.verify_index_creation()
+            self.verify_index_creation(table_id, index_id)
 
             # Step 5: Run QPS benchmark
             self.run_qps_benchmark()
