@@ -27,7 +27,7 @@ from . import utils
 
 class TICIBenchmarkRunner:
     def __init__(
-        self, worker_count=1, tiflash_count=1, max_rows=1000000, shard_size="16MB", mysql_host=None, mysql_port=None
+        self, worker_count=1, tiflash_count=1, max_rows=1000000, shard_size="32MB", mysql_host=None, mysql_port=None
     ):
         self.tiup_process = None
         self.shard_size = shard_size
@@ -316,11 +316,11 @@ class TICIBenchmarkRunner:
             # Step 1: Create table
             self.create_table()
 
-            # Step 2: Create index
-            table_id, index_id = self.create_fulltext_index()
-
-            # Step 3: Insert data
+            # Step 2: Insert data
             self.insert_test_data()
+
+            # Step 3: Create index
+            table_id, index_id = self.create_fulltext_index()
 
             # Step 4: Verify index
             self.verify_index_creation(table_id, index_id)

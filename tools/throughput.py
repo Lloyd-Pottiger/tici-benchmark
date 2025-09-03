@@ -21,26 +21,25 @@ def parse_log_line(line: str) -> Optional[Tuple[str, int, float, float]]:
         Tuple of (frag_path, docs, bytes, elapsed_ms) or None if parsing fails
     """
     # Pattern to match the log format
-    pattern = r'frag_path=([^,]+),.*docs=(\d+), bytes=(\d+)/\d+\w+, elapsed=(\d+)/\d+\w+'
+    pattern = r'frag_path=([^,]+),.*docs=(\d+), bytes=(\d+.\d+)/\d+.\d+\w+, elapsed=(\d+)/\d+\w+'
 
     match = re.search(pattern, line)
     if match:
         frag_path = match.group(1)
         docs = int(match.group(2))
-        bytes_written = int(match.group(3))
+        mb_written = float(match.group(3))
         elapsed_ms = int(match.group(4))
-
-        return frag_path, docs, bytes_written, elapsed_ms
+        return frag_path, docs, mb_written, elapsed_ms
 
     return None
 
 
-def calculate_throughput(bytes_written: int, elapsed_ms: int) -> float:
+def calculate_throughput(mb_written: float, elapsed_ms: int) -> float:
     """
     Calculate throughput in MiB/s.
 
     Args:
-        bytes_written: Number of bytes written
+        mb_written: Number of megabytes written
         elapsed_ms: Elapsed time in milliseconds
 
     Returns:
@@ -53,7 +52,7 @@ def calculate_throughput(bytes_written: int, elapsed_ms: int) -> float:
     elapsed_s = elapsed_ms / 1000.0
 
     # Convert bytes to MiB and calculate throughput
-    throughput_mibs = bytes_written / elapsed_s / (1024 * 1024)
+    throughput_mibs = mb_written / elapsed_s
 
     return throughput_mibs
 
@@ -74,17 +73,17 @@ def process_log_file(file_path: str) -> List[dict]:
         with open(file_path, 'r') as file:
             for line_num, line in enumerate(file, 1):
                 line = line.strip()
-                if 'FragWriter switch trigger' in line:
+                if 'switch trigger by' in line:
                     parsed = parse_log_line(line)
                     if parsed:
-                        frag_path, docs, bytes_written, elapsed_ms = parsed
-                        throughput = calculate_throughput(bytes_written, elapsed_ms)
+                        frag_path, docs, mb_written, elapsed_ms = parsed
+                        throughput = calculate_throughput(mb_written, elapsed_ms)
 
                         results.append({
                             'line_number': line_num,
                             'frag_path': frag_path,
                             'docs': docs,
-                            'bytes': bytes_written,
+                            'mb_written': mb_written,
                             'elapsed_ms': elapsed_ms,
                             'throughput_mibs': throughput,
                             'trigger_type': 'size_limit' if 'size_limit' in line else 'timeout'
@@ -197,8 +196,12 @@ def main():
     if args.example:
         # Example with the provided log lines
         example_lines = [
-            "[2025-08-21T09:47:06Z DEBUG tici_shard::writer::cdc_log_frag_writer] FragWriter switch trigger by size_limit , frag_path=fragments/t_124/i_2/f_460264472530386968, stats: docs=23390, bytes=5243014/5MiB, elapsed=2025/5sms.",
-            "[2025-08-21T09:47:09Z DEBUG tici_shard::writer::cdc_log_frag_writer] FragWriter switch trigger by timeout, frag_path=fragments/t_124/i_2/f_460264471914610693, stats: docs=20982, bytes=4683865/5MiB, elapsed=7153/5sms."
+            "[2025-09-01T08:02:00Z INFO  tici_shard::writer::cdc_log_frag_writer] t_124/i_2/s_1 switch trigger by timeout, frag_path=fragments/t_124/i_2/f_460511958895951876, watermark=, stats: docs=1, bytes=0/5MiB, elapsed=10308/5000ms.",
+            "[2025-09-01T08:02:00Z INFO  tici_shard::writer::cdc_log_frag_writer] t_124/i_2/s_1 switch trigger by size_limit, frag_path=fragments/t_124/i_2/f_460511961596035077, watermark=, stats: docs=23405, bytes=5/5MiB, elapsed=98/5000ms.",
+            "[2025-09-01T08:02:00Z INFO  tici_shard::writer::cdc_log_frag_writer] t_124/i_2/s_1 switch trigger by size_limit, frag_path=fragments/t_124/i_2/f_460511961621987334, watermark=, stats: docs=23490, bytes=5/5MiB, elapsed=113/5000ms.",
+            "[2025-09-01T08:02:06Z INFO  tici_shard::writer::cdc_log_frag_writer] t_124/i_2/s_1 switch trigger by timeout, frag_path=fragments/t_124/i_2/f_460511961648201738, watermark=qiuyang_test/cdc/test/hdfs_10w/460511958895951884/2025-09-01/CDC00000000000000000001.json, stats: docs=3105, bytes=0/5MiB, elapsed=5314/5000ms.",
+            "[2025-09-01T08:02:06Z INFO  tici_shard::writer::cdc_log_frag_writer] t_124/i_2/s_1 switch trigger by size_limit, frag_path=fragments/t_124/i_2/f_460511963050672129, watermark=qiuyang_test/cdc/test/hdfs_10w/460511958895951884/2025-09-01/CDC00000000000000000001.json, stats: docs=23351, bytes=5/5MiB, elapsed=141/5000ms.",
+            "[2025-09-01T08:02:06Z INFO  tici_shard::writer::cdc_log_frag_writer] t_124/i_2/s_1 switch trigger by size_limit, frag_path=fragments/t_124/i_2/f_460511963076886539, watermark=qiuyang_test/cdc/test/hdfs_10w/460511958895951884/2025-09-01/CDC00000000000000000001.json, stats: docs=23342, bytes=5/5MiB, elapsed=141/5000ms.",
         ]
 
         print("Example calculation with provided log lines:")

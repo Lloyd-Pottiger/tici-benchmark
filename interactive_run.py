@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument(
         "--size",
         type=str,
-        default="16MB",
+        default="32MB",
         choices=config.TEST_SIZES,
         help=f"Shard max size to test (choices: {', '.join(config.TEST_SIZES)}).",
     )
