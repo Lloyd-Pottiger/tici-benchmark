@@ -92,6 +92,7 @@ def main():
                         table_id, index_id = runner.create_fulltext_index(sql)
                     else:
                         table_id, index_id = runner.create_fulltext_index()
+                    runner.verify_index_creation(table_id, index_id)
                 except Exception as e:
                     print(f"❌ Error creating index: {e}")
             elif input_choice == '2':
@@ -101,9 +102,11 @@ def main():
                     runner.verify_index_creation(table_id, index_id)
             elif input_choice == '3':
                 # Run QPS benchmark
+                runner.warm_up_shard_cache()
                 runner.run_qps_benchmark()
             elif input_choice == '4':
                 # Run latency benchmark
+                runner.warm_up_shard_cache()
                 runner.run_latency_benchmark()
             elif input_choice == '5':
                 # Stop cluster

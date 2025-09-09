@@ -326,7 +326,9 @@ def validate_cdc_file_sequence(s3_client, bucket: str, directory_prefix: str, ex
         all_files = list_s3_files_with_prefix(s3_client, bucket, directory_prefix)
         # Filter only CDC*.json files
         cdc_files = [f for f in all_files if f["key"].endswith(".json") and "/CDC" in f["key"]]
-        if not cdc_files:
+        if not cdc_files and not expected_last_file.endswith(".json"):
+            return True  # No CDC files expected and none found
+        elif not cdc_files:
             raise RuntimeError(f"No CDC files found under {directory_prefix}/")
 
         # Sort files by last modified time (descending)

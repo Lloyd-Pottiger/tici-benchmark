@@ -200,6 +200,15 @@ class TICIBenchmarkRunner:
             result = utils.execute_sql(connection, "SELECT count(*) FROM tici.tici_shard_meta;")
             print(f"Shard meta count: {result[0][0]}")
 
+    def warm_up_shard_cache(self):
+        """Warm up the shard cache"""
+        print("🔥 Warming up shard cache...")
+        with utils.mysql_connection(self.mysql_host, self.mysql_port) as connection:
+            for word in config.WORD_LIST:
+                query = config.QUERY_TEMPLATE.replace("xxxx", word[0])
+                results = utils.execute_sql(connection, query)
+                assert results[0][0] == word[1], f"Expected {word[1]} but got {results[0][0]}"
+
     def run_qps_benchmark(self):
         """Run the concurrent QPS benchmark"""
         print("⚡ Running QPS benchmark...")
@@ -316,21 +325,23 @@ class TICIBenchmarkRunner:
             # Step 1: Create table
             self.create_table()
 
-            # Step 2: Insert data
-            self.insert_test_data()
-
-            # Step 3: Create index
+            # Step 2: Create index
             table_id, index_id = self.create_fulltext_index()
+
+            # Step 3: Insert data
+            self.insert_test_data()
 
             # Step 4: Verify index
             self.verify_index_creation(table_id, index_id)
 
-            # Step 5: Run QPS benchmark
-            self.run_qps_benchmark()
+            # Step 5: Warm up shard cache
+            self.warm_up_shard_cache()
 
             # Step 6: Run latency benchmark
             self.run_latency_benchmark()
 
+            # Step 7: Run QPS benchmark
+            self.run_qps_benchmark()
         except Exception:
             raise
 
