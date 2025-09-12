@@ -4,7 +4,7 @@ from pathlib import Path
 # How long each concurrency test should run (in seconds).
 TEST_DURATION = 30
 # The list of concurrent connections to test.
-CONCURRENCY_LEVELS = [5, 10, 15, 20, 25, 30, 35, 40, 50]
+CONCURRENCY_LEVELS = [20, 30, 40, 50, 60, 70, 80]
 # The list of shard sizes to test.
 TEST_SIZES = ["32MB", "64MB", "128MB", "256MB"]
 # The template for the SQL query to run.

@@ -1,5 +1,6 @@
 import os
 from . import utils
+from tqdm import tqdm
 
 
 def read_hdfs_logs(file_path, max_rows=None, batch_size=50000):
@@ -35,14 +36,10 @@ def read_hdfs_logs(file_path, max_rows=None, batch_size=50000):
     except Exception as e:
         print(f"Error reading file {file_path}: {e}")
 
-    print(f"Read {total_read} total log entries from {file_path}")
-
 
 def insert_hdfs_logs_batch(connection, table_name, logs):
     """Insert HDFS logs into database with tenant_id encoded in primary key"""
     try:
-        total_logs = len(logs)
-
         sql = f"INSERT INTO {table_name} (timestamp, severity_text, body, tenant_id) VALUES"
         for _, log in enumerate(logs):
             # Extract the required fields
@@ -55,7 +52,6 @@ def insert_hdfs_logs_batch(connection, table_name, logs):
 
         utils.execute_sql(connection, sql[:-1])  # Remove trailing comma
         connection.commit()
-        print(f"{total_logs} logs from batch inserted successfully into {table_name}")
     except Exception as e:
         print(f"Error inserting logs: {e}")
         raise
@@ -98,13 +94,14 @@ def process_hdfs_logs(table_name, max_rows=None, batch_size=50000, tidb_host="lo
 
         with utils.mysql_connection(tidb_host, tidb_port, database='test') as connection:
             # Process logs in batches using the generator
-            for _, batch in enumerate(read_hdfs_logs(infilename, max_rows, batch_size)):
+            for _, batch in tqdm(enumerate(read_hdfs_logs(infilename, max_rows, batch_size)), desc="Processing Batches", unit="batch"):
                 if out:
                     write_logs_to_csv(batch, outfile)
                 else:
                     insert_hdfs_logs_batch(connection, table_name, batch)
                 total_inserted += len(batch)
-                print(f"Total logs inserted so far: {total_inserted}")
+
+            print(f"✅ Read {max_rows} total log entries from {infilename} and inserted {total_inserted} into {table_name}")
     finally:
         if outfile:
             outfile.close()
