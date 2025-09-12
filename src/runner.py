@@ -176,7 +176,8 @@ class TICIBenchmarkRunner:
         s3_client = utils.create_s3_client(endpoint, access_key, secret_key)
 
         is_valid = False
-        while not is_valid:
+        is_verified = False
+        while not is_valid or not is_verified:
             time.sleep(5)  # Wait before next check
             with utils.mysql_connection(self.mysql_host, self.mysql_port, timeout=60) as connection:
                 sql = "SELECT distinct progress FROM tici.tici_shard_meta"
@@ -186,15 +187,17 @@ class TICIBenchmarkRunner:
                 for row in result:
                     progress = utils.safe_json_parse(row[0])
                     cdc_s3_last_file = progress.get("cdc_s3_last_file")
-                    is_valid = utils.validate_cdc_file_sequence(
+                    res = utils.validate_cdc_file_sequence(
                         s3_client,
                         bucket,
                         f"{prefix}/cdc/test/hdfs_10w",
                         cdc_s3_last_file,
                     )
-                    if is_valid:
+                    if is_valid and res:
                         print(f"✅ Index verified successfully with last file: {cdc_s3_last_file}")
+                        is_verified = True
                         break
+                    is_valid = res
 
         with utils.mysql_connection(self.mysql_host, self.mysql_port) as connection:
             result = utils.execute_sql(connection, "SELECT count(*) FROM tici.tici_shard_meta;")
